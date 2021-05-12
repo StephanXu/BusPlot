@@ -32,8 +32,9 @@ Axis::Axis(std::shared_ptr<Shader> shader, std::shared_ptr<TextRender> textRende
 }
 
 auto Axis::Render() -> void {
-    const glm::vec3 gridColor(0.3f, 0.3f, 0.3f);
-    const glm::vec3 axisColor(1.f, 1.f, 1.f);
+    const auto gridColor = Property<glm::vec3>("gridColor");
+    const auto axisColor = Property<glm::vec3>("axisColor");
+    const auto textColor = Property<glm::vec3>("textColor");
     const auto[xBegin, xEnd] = m_AxisXRange;
     const auto[yBegin, yEnd] = m_AxisYRange;
     const std::vector<glm::dvec2> borderVertices = {
@@ -74,7 +75,7 @@ auto Axis::Render() -> void {
         auto textBlockSize = m_TextRender->GetTextBlockSize(text);
         textPos.x -= textBlockSize.x / 2.f;
         textPos.y -= textBlockSize.y + 10.f;
-        m_TextRender->RenderText(text, glm::dvec2(textPos.x, textPos.y), glm::vec3(1.f, 1.f, 1.f));
+        m_TextRender->RenderText(text, glm::dvec2(textPos.x, textPos.y), textColor);
     }
 
     for (double y = std::floor(yBegin); y < yEnd; y += m_AxisYInterval) {
@@ -87,7 +88,7 @@ auto Axis::Render() -> void {
         auto textBlockSize = m_TextRender->GetTextBlockSize(text);
         textPos.x -= textBlockSize.x + 10.f;
         textPos.y -= textBlockSize.y / 2.f;
-        m_TextRender->RenderText(text, glm::dvec2(textPos.x, textPos.y), glm::vec3(1.f, 1.f, 1.f));
+        m_TextRender->RenderText(text, glm::dvec2(textPos.x, textPos.y), textColor);
     }
 
     m_Shader->Activate();
@@ -102,9 +103,6 @@ auto Axis::Render() -> void {
     glBindVertexArray(m_VAO);
     glDrawArrays(GL_LINES, borderVertices.size(), vertices.size() - 4);
     glDrawArrays(GL_LINE_STRIP, 0, borderVertices.size());
-
-    // Render axis label
-
 }
 
 auto Axis::SetAxisXRange(const long long int start, const long long int end) -> void { m_AxisXRange = {start, end}; }

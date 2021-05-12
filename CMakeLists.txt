@@ -44,5 +44,8 @@ target_link_libraries(BusPlot PRIVATE glm::glm)
 find_package(spdlog CONFIG REQUIRED)
 target_link_libraries(BusPlot PRIVATE spdlog::spdlog)
 
+find_package(fmt CONFIG REQUIRED)
+target_link_libraries(BusPlot PRIVATE fmt::fmt)
+
 find_package(freetype CONFIG REQUIRED)
 target_link_libraries(BusPlot PRIVATE freetype)

@@ -1,7 +1,12 @@
 #ifndef BUSPLOT_ELEMENT_HPP
 #define BUSPLOT_ELEMENT_HPP
 
+#include <fmt/format.h>
 #include <glm/glm.hpp>
+
+#include <unordered_map>
+#include <string>
+#include <any>
 
 class Element {
 public:
@@ -19,12 +24,23 @@ public:
 
     [[nodiscard]] auto Size() const noexcept -> glm::vec2;
 
-    auto SetParent(const Element *element) noexcept -> void;
-
     [[nodiscard]] auto GetModelMatrix() const noexcept -> glm::mat4;
 
-protected:
+    auto SetParent(const Element *element) noexcept -> void;
 
+    auto SetProperty(const std::string &name, std::any value) -> void;
+
+    template<typename T>
+    auto Property(const std::string &name) const -> T {
+        auto it = m_Properties.find(name);
+        if (it == m_Properties.end()) {
+            throw std::runtime_error(fmt::format("Can't find element property: {}", name));
+        }
+        return std::any_cast<T>(it->second);
+    }
+
+protected:
+    std::unordered_map<std::string, std::any> m_Properties;
     glm::vec2 m_Position{};
     glm::vec2 m_Size{};
 

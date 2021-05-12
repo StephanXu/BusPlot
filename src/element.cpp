@@ -24,3 +24,7 @@ auto Element::GetModelMatrix() const noexcept -> glm::mat4 {
     model = glm::scale(model, glm::vec3(Size(), 1.0f));
     return model;
 }
+
+auto Element::SetProperty(const std::string &name, std::any value) -> void {
+    m_Properties.insert(std::make_pair(name, value));
+}

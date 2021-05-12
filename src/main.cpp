@@ -75,17 +75,22 @@ int main() {
 
     auto chart = Chart::MakeChart(seriesShader,
                                   textShader,
-                                  "asset/Roboto-Regular.ttf",
+                                  "asset/FiraCode-Regular.ttf",
                                   false);
 
     auto s1 = std::make_shared<Series>();
-    s1->SetColor(glm::vec3(0.f, 1.0, 0.f));
+    s1->SetColor(glm::vec3(0, 255, 0) / 255.f);
     auto s2 = std::make_shared<Series>();
-    s2->SetColor(glm::vec3(0.f, 1.f, 1.f));
+    s2->SetColor(glm::vec3(0, 255, 255) / 255.f);
 
     chart->AddSeries("series 1", s1);
     chart->AddSeries("series 2", s2);
     chart->SetPosition({200, 200});
+
+    auto axis = chart->GetAxis();
+    axis->SetProperty("textColor", glm::vec3(1.f, 1.f, 1.f));
+    axis->SetProperty("axisColor", glm::vec3(1.f, 1.f, 1.f));
+    axis->SetProperty("gridColor", glm::vec3(.33f, .33f, .33f));
 
     std::thread([&]() {
         while (!glfwWindowShouldClose(window)) {
@@ -105,6 +110,7 @@ int main() {
         glm::dmat4 mvp = glm::ortho(0.f, static_cast<float>(width), 0.f, static_cast<float>(height), 1.f, -1.f);
 
         glViewport(0, 0, width, height);
+        glClearColor(0.f, 0.f, 0.f, 0.f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         seriesShader->Activate();
