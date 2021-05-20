@@ -10,6 +10,12 @@
 #include "series.hpp"
 #include "chart.hpp"
 
+#ifdef _WIN32
+#define NOMINMAX
+#include <Windows.h>
+#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
+#endif // _WIN32
+
 CMRC_DECLARE(resources);
 
 static void error_callback(int error, const char *description) {
@@ -266,7 +272,7 @@ int main() {
             ImGui::End();
         }
 
-        ImGui::ShowDemoWindow(nullptr);
+//        ImGui::ShowDemoWindow(nullptr);
 //        ImPlot::ShowDemoWindow(nullptr);
 
         if (ImGui::Begin(u8"连接设置", nullptr)) {

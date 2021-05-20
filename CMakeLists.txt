@@ -15,15 +15,17 @@ target_sources(BusPlot
         "src/chart.cpp"
         )
 target_include_directories(BusPlot PRIVATE "src")
+set_property(TARGET BusPlot PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-cmrc_add_resource_library(resources-shader
+cmrc_add_resource_library(BusPlotResources
         ALIAS
-        resources::shader
+        BusPlot::Resources
         NAMESPACE
         resources
         "asset/default_layout.ini"
         )
-target_link_libraries(BusPlot PRIVATE resources::shader)
+set_property(TARGET BusPlotResources PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+target_link_libraries(BusPlot PRIVATE BusPlot::Resources)
 
 find_package(glfw3 CONFIG REQUIRED)
 target_link_libraries(BusPlot PRIVATE glfw)
