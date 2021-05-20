@@ -1,51 +1,6 @@
-#include <glm/gtc/matrix_transform.hpp>
-#include <cmrc/cmrc.hpp>
-
-CMRC_DECLARE(resources);
-
 #include <memory>
-#include <sstream>
-
 #include "gl.hpp"
 #include "chart.hpp"
-#include "text.hpp"
-#include "shader.hpp"
-
-
-auto Chart::MakeChart(std::shared_ptr<Shader> shader,
-                      std::shared_ptr<Shader> textShader,
-                      const std::string &fontFace,
-                      bool isFontFaceEmbedded) -> std::shared_ptr<Chart> {
-    auto chart = std::make_shared<Chart>(shader);
-    auto textRender = std::make_shared<TextRender>(std::move(textShader));
-    const unsigned int fontSize = 36;
-    if (isFontFaceEmbedded) {
-        auto fs = cmrc::resources::get_filesystem();
-        auto file = fs.open(fontFace);
-        textRender->Initialize(std::vector<unsigned char>(file.begin(), file.end()), fontSize);
-    } else {
-        textRender->Initialize(fontFace, fontSize);
-    }
-    auto axis = std::make_shared<Axis>(shader, textRender);
-    chart->SetAxis(axis);
-    return chart;
-}
-
-Chart::Chart(std::shared_ptr<Shader> seriesShader)
-        : m_SeriesShader(std::move(seriesShader)) {
-    glGenVertexArrays(1, &m_VAO);
-    glBindVertexArray(m_VAO);
-
-    glGenBuffers(1, &m_VertexBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, m_VertexBuffer);
-    glVertexAttribLPointer(0, 2, GL_DOUBLE, sizeof(glm::dvec2), nullptr);
-    glEnableVertexAttribArray(0);
-
-    glGenBuffers(1, &m_ColorBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, m_ColorBuffer);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
-    glEnableVertexAttribArray(1);
-}
 
 auto Chart::AddSeries(const std::string &name) -> std::shared_ptr<Series> {
     auto series = std::make_shared<Series>();
@@ -58,85 +13,89 @@ auto Chart::AddSeries(const std::string &name, const std::shared_ptr<Series> &se
     return m_Series.insert(std::make_pair(name, series)).second;
 }
 
-auto Chart::SetAxis(const std::shared_ptr<Axis> &axis) -> void {
-    if (m_Axis) {
-        m_Axis->SetParent(nullptr);
-    }
-    m_Axis = axis;
-    m_Axis->SetParent(this);
-}
-
-auto Chart::GetAxis() -> std::shared_ptr<Axis> { return m_Axis; }
-
 auto Chart::GetSeriesOrDefault(const std::string &name) const -> std::shared_ptr<Series> {
     auto it = m_Series.find(name);
     return it == m_Series.end() ? nullptr : it->second;
 }
 
-auto Chart::Render() -> void {
-    const Duration timeLimit = std::chrono::duration_cast<Duration>(std::chrono::seconds(5));
-    const TimeType timeNow = std::chrono::time_point_cast<Duration>(Clock::now());
-
-    std::vector<std::pair<size_t, size_t>> ranges;
-    ranges.reserve(m_Series.size());
-    size_t verticesCount = 0;
-    for (const auto &item : m_Series) {
-        auto &series = item.second;
-        auto range = series->GetVerticesRange(timeNow - timeLimit, timeNow);
-        ranges.push_back(range);
-        verticesCount += range.second - range.first;
-    }
-    std::vector<glm::dvec2> vertices(verticesCount);
-    std::vector<glm::vec3> colors(verticesCount);
-    double minY = 0.f;
-    double maxY = 0.f;
-    const long long minX = std::chrono::duration_cast<Duration>((timeNow - timeLimit).time_since_epoch()).count();
-    const long long maxX = std::chrono::duration_cast<Duration>(timeNow.time_since_epoch()).count();
-    {
-        auto verticesIterator = vertices.begin();
-        auto colorsIterator = colors.begin();
-        auto rangeIterator = ranges.cbegin();
+auto Chart::RenderPlot() -> void {
+    const auto timeLimit = std::chrono::duration_cast<Duration>(std::chrono::seconds(5));
+    const auto timeNow = std::chrono::time_point_cast<Duration>(Clock::now());
+//    ImPlot::SetNextPlotLimitsX(beginPtr->m_Time, buffer.back().m_Time, ImGuiCond_Always);
+//    double xMin = 0, xMax = 0, yMin = 0, yMax = 0;
+//    xMin = std::chrono::duration_cast<Duration>((timeNow - timeLimit + m_TimeZoneDiff).time_since_epoch()).count();
+//    xMax = std::chrono::duration_cast<Duration>((timeNow + m_TimeZoneDiff).time_since_epoch()).count();
+//    xMin /= 1000000.f;
+//    xMax /= 1000000.f;
+//    yMin = std::numeric_limits<double>::max();
+//    yMax = std::numeric_limits<double>::min();
+//    ImPlot::LinkNextPlotLimits(&xMin, &xMax, &yMin, &yMax);
+    ImPlot::FitNextPlotAxes(true, true);
+    if (ImPlot::BeginPlot("##RealtimeGraph", nullptr, nullptr, ImVec2(-1, -1), ImPlotFlags_None,
+                          ImPlotAxisFlags_Time)) {
         for (const auto &item : m_Series) {
-            auto &series = item.second;
-            auto[beginIdx, endIdx] = *(rangeIterator++);
-            double minYOfData = 0.f, maxYOfData = 0.f;
-            series->GenerateVertices(beginIdx, endIdx,
-                                     verticesIterator, vertices.end(),
-                                     colorsIterator, colors.end(),
-                                     &minYOfData, &maxYOfData);
-            minY = std::min(minY, minYOfData);
-            maxY = std::max(maxY, maxYOfData);
-            verticesIterator += static_cast<long>(endIdx - beginIdx);
-            colorsIterator += static_cast<long>(endIdx - beginIdx);
+            const auto &[seriesName, series] = item;
+            auto buffer = series->GenerateDots(timeNow - timeLimit, timeNow);
+            for (auto &dot : buffer) {
+                dot.m_Time += std::chrono::duration_cast<std::chrono::seconds>(m_TimeZoneDiff).count();
+            }
+            const Dot *beginPtr = &buffer.front();
+//            auto[yMinOfData, yMaxOfData] = std::minmax_element(buffer.begin(), buffer.end(),
+//                                                               [](const Dot &lhs, const Dot &rhs) {
+//                                                                   return lhs.m_Value < rhs.m_Value;
+//                                                               });
+//            yMin = std::min(yMin, yMinOfData->m_Value);
+//            yMax = std::max(yMax, yMaxOfData->m_Value);
+            ImPlot::PlotLine(seriesName.c_str(), &beginPtr->m_Time, &beginPtr->m_Value, buffer.size(), 0, sizeof(Dot));
         }
+//        spdlog::info("{}, {}, {}, {}", xMin, xMax, yMin, yMax);
+        ImPlot::EndPlot();
     }
+}
 
-    glm::dmat4 scale = glm::dmat4(1.f);
-    scale = glm::scale(scale, glm::dvec3(1.f / static_cast<double>(maxX - minX), 1.f / (maxY - minY), 1.0f));
-    scale = glm::translate(scale, glm::dvec3(static_cast<double>(-minX), -minY, 0.0f));
+void Sparkline(const char *id, const std::vector<Dot> &dots, const ImVec4 &col, const ImVec2 &size) {
+    ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2(0, 0));
+    ImPlot::FitNextPlotAxes(true, true);
+    if (ImPlot::BeginPlot(id, nullptr, nullptr, size,
+                          ImPlotFlags_CanvasOnly | ImPlotFlags_NoChild,
+                          ImPlotAxisFlags_NoDecorations,
+                          ImPlotAxisFlags_NoDecorations)) {
+        ImPlot::PushStyleColor(ImPlotCol_Line, col);
+        ImPlot::PlotLine(id, &dots.front().m_Value, dots.size(), 1, 0, 0, sizeof(Dot));
+        ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.25f);
+        ImPlot::PlotShaded(id, &dots.front().m_Value, dots.size(), 0, 1, 0, 0, sizeof(Dot));
+        ImPlot::PopStyleVar();
+        ImPlot::PopStyleColor();
+        ImPlot::EndPlot();
+    }
+    ImPlot::PopStyleVar();
+}
 
-    m_Axis->SetAxisXInterval(1000 * 700);
-    m_Axis->SetAxisXRange(minX, maxX);
-    m_Axis->SetAxisYInterval(8.f);
-    m_Axis->SetAxisYRange(minY, maxY);
-    m_Axis->SetPosition({0, 0});
-    m_Axis->SetSize(m_Size);
-    m_Axis->Render();
-
-    m_SeriesShader->Activate();
-    m_SeriesShader->SetMatrix4d("model", GetModelMatrix());
-    m_SeriesShader->SetMatrix4d("scale", scale);
-
-    glBindBuffer(GL_ARRAY_BUFFER, m_VertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::dvec2) * vertices.size(), vertices.data(), GL_DYNAMIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, m_ColorBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * colors.size(), colors.data(), GL_DYNAMIC_DRAW);
-
-    glBindVertexArray(m_VAO);
-    int startPos = 0;
-    for (const auto &range : ranges) {
-        int count = static_cast<int>(range.second - range.first);
-        glDrawArrays(GL_LINE_STRIP, startPos, count);
-        startPos += count;
+auto Chart::RenderTable() -> void {
+    const auto timeLimit = std::chrono::duration_cast<Duration>(std::chrono::seconds(5));
+    const auto timeNow = std::chrono::time_point_cast<Duration>(Clock::now());
+    const ImGuiTableFlags tableFlags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_RowBg;
+    if (ImGui::BeginTable("##ReadtimeTable", 3, tableFlags, ImVec2(-1, 0))) {
+        ImGui::TableSetupColumn("Variable", ImGuiTableColumnFlags_WidthFixed, 75.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 75.0f);
+        ImGui::TableSetupColumn("Plot");
+        ImGui::TableHeadersRow();
+        ImPlot::PushColormap(ImPlotColormap_Cool);
+        for (auto it = m_Series.cbegin(); it != m_Series.cend(); ++it) {
+            const auto &[seriesName, series]=*it;
+            const auto row = std::distance(m_Series.cbegin(), it);
+            const auto buffer = series->GenerateDots(timeNow - timeLimit, timeNow);
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%s", seriesName.c_str());
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%.3f", buffer.back().m_Value);
+            ImGui::TableSetColumnIndex(2);
+            ImGui::PushID(row);
+            Sparkline("##spark", buffer, ImPlot::GetColormapColor(row), ImVec2(-1, 35));
+            ImGui::PopID();
+        }
+        ImPlot::PopColormap();
+        ImGui::EndTable();
     }
 }

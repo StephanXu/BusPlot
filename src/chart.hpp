@@ -6,41 +6,30 @@
 #include <memory>
 
 #include "gl.hpp"
-#include "element.hpp"
-#include "shader.hpp"
 #include "series.hpp"
-#include "axis.hpp"
 
-class Chart : public Element {
+class Chart {
 public:
-    static auto MakeChart(std::shared_ptr<Shader> shader,
-                          std::shared_ptr<Shader> textShader,
-                          const std::string& fontFace,
-                          bool isFontFaceEmbedded = true) -> std::shared_ptr<Chart>;
-
-    explicit Chart(std::shared_ptr<Shader> seriesShader);
+    explicit Chart() {
+        const std::time_t epochPlus11h = 60 * 60 * 11;
+        const int local_time = localtime(&epochPlus11h)->tm_hour;
+        const int gm_time = gmtime(&epochPlus11h)->tm_hour;
+        m_TimeZoneDiff = std::chrono::hours(local_time - gm_time);
+    };
 
     auto AddSeries(const std::string &name) -> std::shared_ptr<Series>;
 
     auto AddSeries(const std::string &name, const std::shared_ptr<Series> &series) -> bool;
 
-    auto SetAxis(const std::shared_ptr<Axis> &axis) -> void;
-
-    [[nodiscard]] auto GetAxis() -> std::shared_ptr<Axis>;
-
     [[nodiscard]] auto GetSeriesOrDefault(const std::string &name) const -> std::shared_ptr<Series>;
 
-    auto Render() -> void;
+    auto RenderPlot() -> void;
+
+    auto RenderTable() -> void;
 
 private:
     std::unordered_map<std::string, std::shared_ptr<Series>> m_Series;
-    std::shared_ptr<Axis> m_Axis = nullptr;
-
-    std::shared_ptr<Shader> m_SeriesShader = nullptr;
-
-    GLuint m_VAO = 0;
-    GLuint m_VertexBuffer = 0;
-    GLuint m_ColorBuffer = 0;
+    std::chrono::hours m_TimeZoneDiff{};
 };
 
 #endif // BUSPLOT_CHART_HPP

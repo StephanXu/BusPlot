@@ -11,12 +11,8 @@ target_compile_features(BusPlot PRIVATE cxx_std_17)
 target_sources(BusPlot
         PRIVATE
         "src/main.cpp"
-        "src/element.cpp"
         "src/series.cpp"
-        "src/shader.cpp"
         "src/chart.cpp"
-        "src/text.cpp"
-        "src/axis.cpp"
         )
 target_include_directories(BusPlot PRIVATE "src")
 
@@ -25,10 +21,7 @@ cmrc_add_resource_library(resources-shader
         resources::shader
         NAMESPACE
         resources
-        "shaders/vertex.glsl"
-        "shaders/fragment.glsl"
-        "shaders/text_fragment.glsl"
-        "shaders/text_vertex.glsl"
+        "asset/default_layout.ini"
         )
 target_link_libraries(BusPlot PRIVATE resources::shader)
 
@@ -38,14 +31,17 @@ target_link_libraries(BusPlot PRIVATE glfw)
 find_package(glad CONFIG REQUIRED)
 target_link_libraries(BusPlot PRIVATE glad::glad)
 
-find_package(glm CONFIG REQUIRED)
-target_link_libraries(BusPlot PRIVATE glm::glm)
-
 find_package(spdlog CONFIG REQUIRED)
 target_link_libraries(BusPlot PRIVATE spdlog::spdlog)
 
 find_package(fmt CONFIG REQUIRED)
 target_link_libraries(BusPlot PRIVATE fmt::fmt)
 
-find_package(freetype CONFIG REQUIRED)
-target_link_libraries(BusPlot PRIVATE freetype)
+find_package(imgui CONFIG REQUIRED)
+target_link_libraries(BusPlot PRIVATE imgui::imgui)
+
+find_package(implot CONFIG REQUIRED)
+target_link_libraries(BusPlot PRIVATE implot::implot)
+
+find_package(Boost REQUIRED COMPONENTS system)
+target_link_libraries(BusPlot PRIVATE Boost::system)
