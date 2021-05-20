@@ -1,4 +1,5 @@
 #include <memory>
+
 #include "gl.hpp"
 #include "chart.hpp"
 
@@ -19,51 +20,48 @@ auto Chart::GetSeriesOrDefault(const std::string &name) const -> std::shared_ptr
 }
 
 auto Chart::RenderPlot() -> void {
-    const auto timeLimit = std::chrono::duration_cast<Duration>(std::chrono::seconds(5));
     const auto timeNow = std::chrono::time_point_cast<Duration>(Clock::now());
-//    ImPlot::SetNextPlotLimitsX(beginPtr->m_Time, buffer.back().m_Time, ImGuiCond_Always);
-//    double xMin = 0, xMax = 0, yMin = 0, yMax = 0;
-//    xMin = std::chrono::duration_cast<Duration>((timeNow - timeLimit + m_TimeZoneDiff).time_since_epoch()).count();
-//    xMax = std::chrono::duration_cast<Duration>((timeNow + m_TimeZoneDiff).time_since_epoch()).count();
-//    xMin /= 1000000.f;
-//    xMax /= 1000000.f;
-//    yMin = std::numeric_limits<double>::max();
-//    yMax = std::numeric_limits<double>::min();
-//    ImPlot::LinkNextPlotLimits(&xMin, &xMax, &yMin, &yMax);
-    ImPlot::FitNextPlotAxes(true, true);
+    double xMin = std::chrono::duration_cast<Duration>(
+            (timeNow - m_TimeLimit + m_TimeZoneDiff).time_since_epoch()).count();
+    double xMax = std::chrono::duration_cast<Duration>((timeNow + m_TimeZoneDiff).time_since_epoch()).count();
+    xMin /= 1000000.f;
+    xMax /= 1000000.f;
+    ImPlot::FitNextPlotAxes(false, true);
+    ImPlot::SetNextPlotLimitsX(xMin, xMax, ImGuiCond_Always);
     if (ImPlot::BeginPlot("##RealtimeGraph", nullptr, nullptr, ImVec2(-1, -1), ImPlotFlags_None,
                           ImPlotAxisFlags_Time)) {
         for (const auto &item : m_Series) {
             const auto &[seriesName, series] = item;
-            auto buffer = series->GenerateDots(timeNow - timeLimit, timeNow);
+            auto buffer = series->GenerateDots(timeNow - m_TimeLimit, timeNow);
             for (auto &dot : buffer) {
                 dot.m_Time += std::chrono::duration_cast<std::chrono::seconds>(m_TimeZoneDiff).count();
             }
             const Dot *beginPtr = &buffer.front();
-//            auto[yMinOfData, yMaxOfData] = std::minmax_element(buffer.begin(), buffer.end(),
-//                                                               [](const Dot &lhs, const Dot &rhs) {
-//                                                                   return lhs.m_Value < rhs.m_Value;
-//                                                               });
-//            yMin = std::min(yMin, yMinOfData->m_Value);
-//            yMax = std::max(yMax, yMaxOfData->m_Value);
             ImPlot::PlotLine(seriesName.c_str(), &beginPtr->m_Time, &beginPtr->m_Value, buffer.size(), 0, sizeof(Dot));
         }
-//        spdlog::info("{}, {}, {}, {}", xMin, xMax, yMin, yMax);
         ImPlot::EndPlot();
     }
 }
 
-void Sparkline(const char *id, const std::vector<Dot> &dots, const ImVec4 &col, const ImVec2 &size) {
+auto Chart::Sparkline(const char *id, const std::vector<Dot> &dots, const ImVec4 &col, const ImVec2 &size) -> void {
     ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2(0, 0));
-    ImPlot::FitNextPlotAxes(true, true);
+    const auto timeNow = std::chrono::time_point_cast<Duration>(Clock::now());
+    double xMin = std::chrono::duration_cast<Duration>(
+            (timeNow - m_TimeLimit + m_TimeZoneDiff).time_since_epoch()).count();
+    double xMax = std::chrono::duration_cast<Duration>((timeNow + m_TimeZoneDiff).time_since_epoch()).count();
+    xMin /= 1000000.f;
+    xMax /= 1000000.f;
+    ImPlot::FitNextPlotAxes(false, true);
+    ImPlot::SetNextPlotLimitsX(xMin, xMax, ImGuiCond_Always);
     if (ImPlot::BeginPlot(id, nullptr, nullptr, size,
                           ImPlotFlags_CanvasOnly | ImPlotFlags_NoChild,
-                          ImPlotAxisFlags_NoDecorations,
+                          ImPlotAxisFlags_NoDecorations | ImPlotAxisFlags_Time,
                           ImPlotAxisFlags_NoDecorations)) {
+        const auto &beginDot = dots.front();
         ImPlot::PushStyleColor(ImPlotCol_Line, col);
-        ImPlot::PlotLine(id, &dots.front().m_Value, dots.size(), 1, 0, 0, sizeof(Dot));
+        ImPlot::PlotLine(id, &beginDot.m_Time, &beginDot.m_Value, dots.size(), 0, sizeof(Dot));
         ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.25f);
-        ImPlot::PlotShaded(id, &dots.front().m_Value, dots.size(), 0, 1, 0, 0, sizeof(Dot));
+        ImPlot::PlotShaded(id, &beginDot.m_Time, &beginDot.m_Value, dots.size(), 0, 0, sizeof(Dot));
         ImPlot::PopStyleVar();
         ImPlot::PopStyleColor();
         ImPlot::EndPlot();
@@ -72,7 +70,6 @@ void Sparkline(const char *id, const std::vector<Dot> &dots, const ImVec4 &col, 
 }
 
 auto Chart::RenderTable() -> void {
-    const auto timeLimit = std::chrono::duration_cast<Duration>(std::chrono::seconds(5));
     const auto timeNow = std::chrono::time_point_cast<Duration>(Clock::now());
     const ImGuiTableFlags tableFlags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_RowBg;
     if (ImGui::BeginTable("##ReadtimeTable", 3, tableFlags, ImVec2(-1, 0))) {
@@ -84,7 +81,10 @@ auto Chart::RenderTable() -> void {
         for (auto it = m_Series.cbegin(); it != m_Series.cend(); ++it) {
             const auto &[seriesName, series]=*it;
             const auto row = std::distance(m_Series.cbegin(), it);
-            const auto buffer = series->GenerateDots(timeNow - timeLimit, timeNow);
+            auto buffer = series->GenerateDots(timeNow - m_TimeLimit, timeNow);
+            for (auto &dot : buffer) {
+                dot.m_Time += std::chrono::duration_cast<std::chrono::seconds>(m_TimeZoneDiff).count();
+            }
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("%s", seriesName.c_str());
@@ -99,3 +99,5 @@ auto Chart::RenderTable() -> void {
         ImGui::EndTable();
     }
 }
+
+auto Chart::TimeLimit() const noexcept -> std::chrono::microseconds { return m_TimeLimit; }

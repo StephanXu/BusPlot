@@ -128,12 +128,12 @@ static void StyleColorsDracula(ImGuiStyle *dst = nullptr) {
     style->Colors[ImGuiCol_FrameBg] = {0.16862746f, 0.16862746f, 0.16862746f, 0.54f};
     style->Colors[ImGuiCol_FrameBgHovered] = {0.453125f, 0.67578125f, 0.99609375f, 0.67f};
     style->Colors[ImGuiCol_FrameBgActive] = {0.47058827f, 0.47058827f, 0.47058827f, 0.67f};
-    style->Colors[ImGuiCol_TitleBg] = {0.04f, 0.04f, 0.04f, 1.00f};
+    style->Colors[ImGuiCol_TitleBg] = {0.2392156863f, 0.2470588235f, 0.2549019608f, 1.00f};
     style->Colors[ImGuiCol_TitleBgCollapsed] = {0.16f, 0.29f, 0.48f, 1.00f};
-    style->Colors[ImGuiCol_TitleBgActive] = {0.00f, 0.00f, 0.00f, 0.51f};
+    style->Colors[ImGuiCol_TitleBgActive] = ImVec4(0.23f, 0.28f, 0.33f, 0.51f);
     style->Colors[ImGuiCol_MenuBarBg] = {0.27058825f, 0.28627452f, 0.2901961f, 0.80f};
     style->Colors[ImGuiCol_ScrollbarBg] = {0.27058825f, 0.28627452f, 0.2901961f, 0.60f};
-    style->Colors[ImGuiCol_ScrollbarGrab] = {0.21960786f, 0.30980393f, 0.41960788f, 0.51f};
+    style->Colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.39f, 0.40f, 0.40f, 0.51f);
     style->Colors[ImGuiCol_ScrollbarGrabHovered] = {0.21960786f, 0.30980393f, 0.41960788f, 1.00f};
     style->Colors[ImGuiCol_ScrollbarGrabActive] = {0.13725491f, 0.19215688f, 0.2627451f, 0.91f};
     style->Colors[ImGuiCol_CheckMark] = {0.90f, 0.90f, 0.90f, 0.83f};
@@ -199,7 +199,7 @@ int main() {
     ImGui::LoadIniSettingsFromMemory(defaultLayoutBuffer.data(), defaultLayoutBuffer.size());
 
     io.Fonts->AddFontFromFileTTF("asset/PingFang.ttc",
-                                 18.f,
+                                 17.f,
                                  nullptr,
                                  io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -231,6 +231,8 @@ int main() {
     int motorId = 0;
     float pidOutMax = 0;
     float controlMatrix[3][3] = {};
+
+    float chartTimeLimit = 5000.f;
 
     std::string deviceConfig;
     std::string baudrate;
@@ -264,7 +266,7 @@ int main() {
             ImGui::End();
         }
 
-//        ImGui::ShowDemoWindow(nullptr);
+        ImGui::ShowDemoWindow(nullptr);
 //        ImPlot::ShowDemoWindow(nullptr);
 
         if (ImGui::Begin(u8"连接设置", nullptr)) {
@@ -294,23 +296,26 @@ int main() {
 
         if (ImGui::Begin(u8"参数设置", nullptr)) {
             ImGui::Combo(u8"模式", &curtPidMode, pidModeItems, sizeof(pidModeItems) / sizeof(const char *));
-            ImGui::InputInt("设备ID", &motorId);
+            ImGui::InputInt(u8"设备ID", &motorId);
             ImGui::DragFloat3("Kp", controlMatrix[0]);
             ImGui::SameLine();
             HelpMarker(u8"设置P参数\n"
-                       "拖动或双击修改参数值\n"
-                       "值顺序为: (Scale, OutMax, Value)\n");
+                       u8"拖动或双击修改参数值\n"
+                       u8"值顺序为: (Scale, OutMax, Value)\n");
             ImGui::DragFloat3("Ki", controlMatrix[1]);
             ImGui::SameLine();
             HelpMarker(u8"设置I参数\n"
-                       "拖动或双击修改参数值\n"
-                       "值顺序为: (Scale, OutMax, Value)\n");
+                       u8"拖动或双击修改参数值\n"
+                       u8"值顺序为: (Scale, OutMax, Value)\n");
             ImGui::DragFloat3("Kd", controlMatrix[2]);
             ImGui::SameLine();
             HelpMarker(u8"设置D参数\n"
-                       "拖动或双击修改参数值\n"
-                       "值顺序为: (Scale, OutMax, Value)\n");
-            ImGui::Button("应用参数", ImVec2(-1, 0));
+                       u8"拖动或双击修改参数值\n"
+                       u8"值顺序为: (Scale, OutMax, Value)\n");
+            ImGui::Button(u8"应用参数", ImVec2(-1, 0));
+            if (ImGui::DragFloat(u8"图表时长", &chartTimeLimit, 10.f, 1000.f, 0.f, "%.3f ms")) {
+                chart->SetTimeLimit(std::chrono::microseconds(static_cast<long long>(chartTimeLimit * 1000.f)));
+            }
             ImGui::End();
         }
 
