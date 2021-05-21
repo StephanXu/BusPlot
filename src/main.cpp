@@ -151,6 +151,26 @@ static void HandleSerialConnect() {
     serial.StartGrabbing();
 }
 
+double GetScale() {
+    double dDpi = 1;
+#if (defined(_WIN32))
+    HDC desktopDc = GetDC(nullptr);
+    float horizontalDPI = GetDeviceCaps(desktopDc, LOGPIXELSX);
+    float verticalDPI = GetDeviceCaps(desktopDc, LOGPIXELSY);
+    int dpi = (horizontalDPI + verticalDPI) / 2;
+    dDpi = 1 + ((dpi - 96) / 24) * 0.25;
+    if (dDpi < 1) {
+        dDpi = 1;
+    }
+    ::ReleaseDC(nullptr, desktopDc);
+#elif (defined(__APPLE__))
+    dDpi = 2.f;
+#else
+    dDpi = 1.f;
+#endif
+    return dDpi;
+}
+
 int main() {
     glfwSetErrorCallback(error_callback);
 
@@ -184,14 +204,15 @@ int main() {
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.IniFilename = nullptr;
     StyleColorsVisualStudio();
-    ImGui::GetStyle().ScaleAllSizes(2.f);
+    const auto scaleFactor = GetScale();
+    ImGui::GetStyle().ScaleAllSizes(scaleFactor);
 
     auto fs = cmrc::resources::get_filesystem();
     auto defaultLayoutContent = fs.open("asset/default_layout.ini");
     std::vector<char> defaultLayoutBuffer(defaultLayoutContent.begin(), defaultLayoutContent.end());
     ImGui::LoadIniSettingsFromMemory(defaultLayoutBuffer.data(), defaultLayoutBuffer.size());
     io.Fonts->AddFontFromFileTTF("asset/PingFang.ttc",
-                                 18.f * 2.f,
+                                 18.f * scaleFactor,
                                  nullptr,
                                  io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
     ImGui_ImplGlfw_InitForOpenGL(window, true);
