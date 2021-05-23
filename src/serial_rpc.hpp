@@ -72,8 +72,11 @@ public:
                 return;
             }
             std::array<ReqType, 1> reqBuffer;
+            std::array<FrameTail, 1> tailBuffer;
             boost::asio::read(m_SerialPort, boost::asio::buffer(reqBuffer),
                               boost::asio::transfer_exactly(sizeof(ReqType)));
+            boost::asio::read(m_SerialPort, boost::asio::buffer(tailBuffer),
+                              boost::asio::transfer_exactly(sizeof(FrameTail)));
             const auto &req = reqBuffer.front();
             process(req);
         };

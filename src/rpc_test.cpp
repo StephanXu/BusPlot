@@ -27,10 +27,10 @@ auto Server() -> void {
     if (!serial.IsValid()) {
         return;
     }
+    spdlog::trace("Server: Serial port connect success.");
     serial.RegisterMessage<VariableAliasReq>(HandleVariableAlias);
     serial.StartGrabbing();
     serial.Join();
-
 }
 
 [[noreturn]] auto Client() -> void {
@@ -45,6 +45,7 @@ auto Server() -> void {
         spdlog::critical("Client: Initialize serial port failed.");
         return;
     }
+    spdlog::trace("Client: Serial port connect success.");
     std::array<RPCRequest<VariableAliasReq>, 1> frameBuffer = {
             SerialRPC::MakeRequest(VariableAliasReq{10, "Var1"})
     };
@@ -57,6 +58,7 @@ auto Server() -> void {
 
 
 int main() {
+    spdlog::set_level(spdlog::level::trace);
     std::thread tc(Client);
     std::thread ts(Server);
     ts.join();

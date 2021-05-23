@@ -93,3 +93,6 @@ target_link_libraries(BusPlot PRIVATE Boost::system)
 add_executable(RPCTest "src/rpc_test.cpp")
 target_link_libraries(RPCTest PRIVATE Boost::system spdlog::spdlog)
 target_compile_features(RPCTest PRIVATE cxx_std_17)
+set_property(TARGET RPCTest
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+        )
