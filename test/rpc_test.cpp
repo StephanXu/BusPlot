@@ -3,13 +3,13 @@
 
 #include <thread>
 
-#include "rpc_protocol.hpp"
-#include "serial_rpc.hpp"
+#include "../src/rpc_protocol.hpp"
+#include "../src/serial_rpc.hpp"
 
 namespace asio = boost::asio;
 
-static constexpr char SERVER_PORT[] = "/dev/ptyp1";
-static constexpr char CLIENT_PORT[] = "/dev/ttyp1";
+static constexpr char SERVER_PORT[] = "COM2";
+static constexpr char CLIENT_PORT[] = "COM3";
 
 static constexpr int BAUD_RATE = 115200;
 static const auto STOP_BITS = asio::serial_port::stop_bits::type::one;

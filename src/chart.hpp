@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <string>
 #include <memory>
+#include <atomic>
 
 #include "gl.hpp"
 #include "series.hpp"
@@ -17,9 +18,9 @@ public:
         m_TimeZoneDiff = std::chrono::hours(local_time - gm_time);
     };
 
-    auto AddSeries(const std::string &name) -> std::shared_ptr<Series>;
+    auto AddSeries(uint16_t seriesId) -> std::shared_ptr<Series>;
 
-    auto AddSeries(const std::string &name, const std::shared_ptr<Series> &series) -> bool;
+    auto AddSeries(uint16_t seriesId, const std::shared_ptr<Series> &series) -> bool;
 
     template<typename T>
     auto SetTimeLimit(T timeLimit) -> void {
@@ -28,7 +29,11 @@ public:
 
     [[nodiscard]] auto TimeLimit() const noexcept -> std::chrono::microseconds;
 
-    [[nodiscard]] auto GetSeriesOrDefault(const std::string &name) const -> std::shared_ptr<Series>;
+    [[nodiscard]] auto GetSeriesOrDefault(uint16_t seriesId) const noexcept -> std::shared_ptr<Series>;
+
+    auto GetOrAddSeries(uint16_t seriesId) -> std::shared_ptr<Series>;
+
+    auto RemoveSeries(uint16_t seriesId) -> bool;
 
     auto RenderPlot() -> void;
 
@@ -36,11 +41,12 @@ public:
 
 private:
 
-    auto Sparkline(const char *id, const std::vector<Dot> &dots, const ImVec4 &col, const ImVec2 &size) -> void;
+    auto Sparkline(const char *id, Series &series, const ImVec4 &col, const ImVec2 &size) -> void;
 
-    std::unordered_map<std::string, std::shared_ptr<Series>> m_Series;
+    mutable std::mutex m_Mutex;
+    std::unordered_map<int, std::shared_ptr<Series>> m_Series;
     std::chrono::hours m_TimeZoneDiff{};
-    std::chrono::microseconds m_TimeLimit{5000000};
+    std::atomic<std::chrono::microseconds> m_TimeLimit{std::chrono::microseconds(5000000)};
 };
 
 #endif // BUSPLOT_CHART_HPP

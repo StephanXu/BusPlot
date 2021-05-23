@@ -20,10 +20,10 @@ struct VariableAliasReq {
     uint8_t m_Alias[10];
 };
 
-struct UpdataVariableReq {
+struct UpdateVariableReq {
     static constexpr uint16_t COMMAND = 0x0020;
     uint16_t m_VariableId;
-    uint32_t m_Value;
+    float m_Value;
 };
 
 struct RemoveVariableReq {

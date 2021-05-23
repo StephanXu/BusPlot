@@ -6,6 +6,8 @@
 
 #include "series.hpp"
 
+Series::Series(const std::string &label) : m_Label(label) {}
+
 auto Series::AddData(Dot data) -> void {
     std::lock_guard<std::mutex> guard(m_Mutex);
     m_Data.push_back(data);
@@ -27,4 +29,18 @@ auto Series::GenerateDots(const TimeType &beginTime, const TimeType &endTime) ->
         return std::vector<Dot>(); ///< No data;
     }
     return std::vector<Dot>(rangeBegin, rangeEnd);
+}
+
+auto Series::Data() const noexcept -> const std::vector<Dot> & {
+    return m_Data;
+}
+
+auto Series::Label() const noexcept -> std::string {
+    std::lock_guard<std::mutex> guard(m_LabelMutex);
+    return m_Label;
+}
+
+auto Series::SetLabel(const std::string &label) -> void {
+    std::lock_guard<std::mutex> guard(m_LabelMutex);
+    m_Label = label;
 }

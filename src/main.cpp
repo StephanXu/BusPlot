@@ -9,16 +9,24 @@
 #include "gl.hpp"
 #include "series.hpp"
 #include "chart.hpp"
+#include "rpc_protocol.hpp"
 #include "serial_rpc.hpp"
 
 #ifdef _WIN32
 #define NOMINMAX
+
 #include <Windows.h>
+
+#ifndef _DEBUG
 #pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
+#endif
 #endif // _WIN32
 
 CMRC_DECLARE(resources);
 
+GLFWwindow *window = nullptr;
+std::shared_ptr<Chart> chart = nullptr;
+bool shouldClose = false;
 SerialRPC serialRPC;
 std::string deviceName = "COM1";
 int baudRate = 115200;
@@ -39,7 +47,7 @@ float controlMatrix[3][3] = {};
 float chartTimeLimit = 5000.f;
 std::string connectErrorTips;
 
-static void HelpMarker(const char *desc) {
+void HelpMarker(const char *desc) {
     ImGui::TextDisabled("(?)");
     if (ImGui::IsItemHovered()) {
         ImGui::BeginTooltip();
@@ -50,7 +58,7 @@ static void HelpMarker(const char *desc) {
     }
 }
 
-static void StyleColorsVisualStudio(ImGuiStyle *dst = nullptr) {
+void StyleColorsVisualStudio(ImGuiStyle *dst = nullptr) {
     constexpr auto ColorFromBytes = [](uint8_t r, uint8_t g, uint8_t b) {
         return ImVec4((float) r / 255.0f, (float) g / 255.0f, (float) b / 255.0f, 1.0f);
     };
@@ -127,19 +135,18 @@ static void StyleColorsVisualStudio(ImGuiStyle *dst = nullptr) {
     style.TabRounding = 0.0f;
 }
 
-static void HandleSerialConnect() {
-    spdlog::info("Pressed");
+void HandleSerialConnect() {
     serialRPC.Connect(deviceName,
-                   baudRate,
-                   boost::asio::serial_port::stop_bits::type(curtStopBit),
-                   characterSize,
-                   boost::asio::serial_port::parity::type(curtParity),
-                   boost::asio::serial_port::flow_control::type(curtFlowControl));
+                      baudRate,
+                      boost::asio::serial_port::stop_bits::type(curtStopBit),
+                      characterSize,
+                      boost::asio::serial_port::parity::type(curtParity),
+                      boost::asio::serial_port::flow_control::type(curtFlowControl));
     if (!serialRPC.IsValid()) {
         connectErrorTips = u8"连接失败";
         return;
     }
-    serialRPC.StartGrabbing();
+    serialRPC.StartGrabbing([]() -> bool { return shouldClose; });
 }
 
 float GetScale() {
@@ -162,16 +169,37 @@ float GetScale() {
     return dDpi;
 }
 
+auto HandleVariableAliasRequest(const VariableAliasReq &req) -> void {
+    auto series = chart->GetOrAddSeries(req.m_VariableId);
+    series->SetLabel(std::string(reinterpret_cast<const char *>(req.m_Alias)));
+}
+
+auto HandleUpdateVariableRequest(const UpdateVariableReq &req) -> void {
+    auto series = chart->GetOrAddSeries(req.m_VariableId);
+    auto t = std::chrono::time_point_cast<Duration>(Clock::now());
+    auto s = static_cast<double>(t.time_since_epoch().count()) / 1000000.f;
+    series->AddData(Dot{s, req.m_Value});
+}
+
+auto HandleRemoveVariableRequest(const RemoveVariableReq &req) -> void {
+    chart->RemoveSeries(req.m_VariableId);
+}
+
+
 int main() {
     if (!glfwInit())
         exit(EXIT_FAILURE);
+
+    serialRPC.RegisterMessage<VariableAliasReq>(HandleVariableAliasRequest);
+    serialRPC.RegisterMessage<UpdateVariableReq>(HandleUpdateVariableRequest);
+    serialRPC.RegisterMessage<RemoveVariableReq>(HandleRemoveVariableRequest);
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-    GLFWwindow *window = glfwCreateWindow(1440, 900, "BusPlot", NULL, NULL);
+    window = glfwCreateWindow(1440, 900, "BusPlot", NULL, NULL);
     if (!window) {
         glfwTerminate();
         exit(EXIT_FAILURE);
@@ -202,26 +230,12 @@ int main() {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 410");
 
-    auto chart = std::make_shared<Chart>();
-    auto s1 = chart->AddSeries("series 1");
-    auto s2 = chart->AddSeries("series 2");
-
-    std::thread([&]() {
-        while (!glfwWindowShouldClose(window)) {
-            auto t = std::chrono::time_point_cast<Duration>(Clock::now());
-            auto s = static_cast<double>(t.time_since_epoch().count()) / 1000000.f;
-            s1->AddData(Dot{s, static_cast<float>(50.f * std::sin(s * 40.f) + 10.f)});
-            s2->AddData(Dot{s, static_cast<float>(10.f * std::cos(s * 20.f) + 10.f)});
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
-    }).detach();
+    chart = std::make_shared<Chart>();
 
     while (!glfwWindowShouldClose(window)) {
-        // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-
         {
             const ImGuiViewport *viewport = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(viewport->WorkPos);
@@ -318,7 +332,7 @@ int main() {
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-
+    shouldClose = true;
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImPlot::DestroyContext();
