@@ -1775,6 +1775,8 @@ struct ImGuiContext
     int                     WantTextInputNextFrame;
     char                    TempBuffer[1024 * 3 + 1];           // Temporary text buffer
 
+    ImVector<float>         alphas;                             // [Hack to disable widgets]
+
     ImGuiContext(ImFontAtlas* shared_font_atlas)
     {
         Initialized = false;

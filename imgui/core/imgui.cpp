@@ -2524,6 +2524,25 @@ void ImGui::PopStyleColor(int count)
     }
 }
 
+// [Hack to disable widgets]
+void ImGui::PushDisabled(bool disabled)
+{
+    ImGuiContext& g = *GImGui;
+    g.alphas.push_back( GetStyle().Alpha );
+    GetStyle().Alpha = disabled ? 0.25f : 1.0f;
+}
+
+// [Hack to disable widgets]
+void ImGui::PopDisabled(int num)
+{
+    ImGuiContext& g = *GImGui;
+    while(num--)
+    {
+        GetStyle().Alpha = g.alphas.back();
+        g.alphas.pop_back();
+    }
+}
+
 struct ImGuiStyleVarInfo
 {
     ImGuiDataType   Type;
@@ -4875,12 +4894,16 @@ bool ImGui::IsMouseHoveringRect(const ImVec2& r_min, const ImVec2& r_max, bool c
         rect_clipped.ClipWith(g.CurrentWindow->ClipRect);
 
     // Expand for touch input
+    // [Returns below are hack to disable widgets]
     const ImRect rect_for_touch(rect_clipped.Min - g.Style.TouchExtraPadding, rect_clipped.Max + g.Style.TouchExtraPadding);
     if (!rect_for_touch.Contains(g.IO.MousePos))
-        return false;
+        // return false;
+        return rect_for_touch.Contains(g.IO.MousePos) && (GetStyle().Alpha >= 1);
     if (!g.MouseViewport->GetMainRect().Overlaps(rect_clipped))
-        return false;
-    return true;
+        // return false;
+        return rect_for_touch.Contains(g.IO.MousePos) && (GetStyle().Alpha >= 1);
+    // return true;
+    return rect_for_touch.Contains(g.IO.MousePos) && (GetStyle().Alpha >= 1);
 }
 
 int ImGui::GetKeyIndex(ImGuiKey imgui_key)
