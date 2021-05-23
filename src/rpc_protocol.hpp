@@ -1,7 +1,7 @@
 #ifndef BUSPLOT_RPC_PROTOCOL_HPP
 #define BUSPLOT_RPC_PROTOCOL_HPP
 
-static constexpr uint8_t SOF = 0xF4;
+static constexpr uint8_t SOF = 0xA5;
 
 #pragma pack(push, 1)
 
@@ -35,6 +35,12 @@ template<class ReqType>
 struct RPCRequest{
     uint8_t m_SOF;
     FrameHeader m_Header;
+    ReqType m_Request;
+    FrameTail m_Tail;
+};
+
+template<class ReqType>
+struct BodyWithTail{
     ReqType m_Request;
     FrameTail m_Tail;
 };

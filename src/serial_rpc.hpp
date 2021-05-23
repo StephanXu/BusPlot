@@ -3,6 +3,7 @@
 
 #include <spdlog/spdlog.h>
 #include <boost/asio.hpp>
+#include <boost/bind.hpp>
 #include <boost/asio/serial_port.hpp>
 
 #include <string>
@@ -28,15 +29,15 @@ public:
                  boost::asio::serial_port::parity::type parity,
                  boost::asio::serial_port::flow_control::type flowControl) -> bool;
 
-    auto StartGrabbing(const CloseCondition &condition) -> void;
+    auto StartGrabbing() -> void;
 
     auto Join() -> void;
 
-    auto IsValid() const noexcept -> bool;
+    [[nodiscard]] auto IsValid() const noexcept -> bool;
 
-    auto Close() -> void {
-        m_SerialPort.close();
-    }
+    auto Close() -> void;
+
+    auto StopGrabbing() -> void;
 
     template<class ReqType>
     auto RegisterMessage(MessageCallBack<ReqType> process) -> bool {
@@ -46,18 +47,18 @@ public:
                              dataLength,
                              typeid(ReqType).name(),
                              sizeof(ReqType));
+                ReadAsync(m_SOFBuffer, &SerialRPC::ReadSOFHandler);
                 return;
             }
-            std::array<ReqType, 1> reqBuffer;
-            std::array<FrameTail, 1> tailBuffer;
-            boost::asio::read(m_SerialPort, boost::asio::buffer(reqBuffer),
-                              boost::asio::transfer_exactly(sizeof(ReqType)));
-            boost::asio::read(m_SerialPort, boost::asio::buffer(tailBuffer),
-                              boost::asio::transfer_exactly(sizeof(FrameTail)));
-            const auto &req = reqBuffer.front();
-            process(req);
+            boost::asio::async_read(
+                    m_SerialPort, boost::asio::buffer(m_BodyBuffer),
+                    boost::asio::transfer_exactly(sizeof(BodyWithTail<ReqType>)),
+                    boost::bind(&SerialRPC::ReadBodyHandler<ReqType>,
+                                this,
+                                boost::asio::placeholders::error,
+                                boost::asio::placeholders::bytes_transferred,
+                                process));
         };
-
         auto[_, suc] = m_Callbacks.insert(std::make_pair(ReqType::COMMAND, handleRequest));
         return suc;
     }
@@ -75,7 +76,49 @@ public:
 
 private:
 
-    auto ReadProcess() -> void;
+    auto ReadSOFHandler(const boost::system::error_code &err, size_t len) -> void;
+
+    auto ReadHeaderHandler(const boost::system::error_code &err, size_t len) -> void;
+
+    template<class ReqType>
+    auto ReadBodyHandler(const boost::system::error_code &err, size_t len, MessageCallBack<ReqType> process) -> void {
+        if (err) {
+            spdlog::critical("SerialPort read body failed: {}", err.message());
+            ReadAsync(m_SOFBuffer, &SerialRPC::ReadSOFHandler);
+            return;
+        }
+        BodyWithTail<ReqType> buf{};
+        std::copy(m_BodyBuffer.begin(), m_BodyBuffer.begin() + sizeof(buf), reinterpret_cast<uint8_t *>(&buf));
+        process(buf.m_Request);
+        ReadAsync(m_SOFBuffer, &SerialRPC::ReadSOFHandler);
+    }
+
+    template<class BufferType, size_t N, class HandlerType>
+    auto ReadAsync(std::array<BufferType, N> &buffer, HandlerType handler) -> void {
+        boost::asio::async_read(m_SerialPort, boost::asio::buffer(buffer),
+                                boost::asio::transfer_exactly(sizeof(BufferType) * N),
+                                boost::bind(handler, this, boost::asio::placeholders::error,
+                                            boost::asio::placeholders::bytes_transferred));
+    }
+
+    template<class BufferType>
+    auto ReadSerialPort(BufferType &destBuffer) -> bool {
+        std::array<BufferType, 1> buffer;
+        std::promise<bool> promise;
+        boost::asio::async_read(
+                m_SerialPort, boost::asio::buffer(buffer),
+                boost::asio::transfer_exactly(sizeof(BufferType)),
+                [&](const boost::system::error_code &err, size_t length) {
+                    if (err) {
+                        spdlog::critical("SerialPort Read failed: {}", err.message());
+                        promise.set_value(false);
+                        return;
+                    }
+                    promise.set_value(true);
+                });
+        destBuffer = buffer[0];
+        return promise.get_future().get();
+    }
 
     std::shared_ptr<std::thread> m_WorkingThread;
     boost::asio::io_service m_IOS;
@@ -83,7 +126,10 @@ private:
     boost::asio::streambuf m_Buffer;
     std::unordered_map<uint16_t, std::function<void(size_t)>> m_Callbacks;
     bool m_IsValid = false;
-    CloseCondition m_CloseCondition = []() { return false; };
+
+    std::array<uint8_t, 1> m_SOFBuffer{};
+    std::array<FrameHeader, 1> m_HeaderBuffer{};
+    std::array<uint8_t, 512> m_BodyBuffer{};
 };
 
 #endif // BUSPLOT_SERIAL_RPC_HPP

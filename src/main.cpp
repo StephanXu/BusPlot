@@ -24,9 +24,7 @@
 
 CMRC_DECLARE(resources);
 
-GLFWwindow *window = nullptr;
 std::shared_ptr<Chart> chart = nullptr;
-bool shouldClose = false;
 SerialRPC serialRPC;
 std::string deviceName = "COM1";
 int baudRate = 115200;
@@ -146,7 +144,7 @@ void HandleSerialConnect() {
         connectErrorTips = u8"连接失败";
         return;
     }
-    serialRPC.StartGrabbing([]() -> bool { return shouldClose; });
+    serialRPC.StartGrabbing();
 }
 
 float GetScale() {
@@ -187,6 +185,7 @@ auto HandleRemoveVariableRequest(const RemoveVariableReq &req) -> void {
 
 
 int main() {
+    spdlog::set_level(spdlog::level::info);
     if (!glfwInit())
         exit(EXIT_FAILURE);
 
@@ -199,7 +198,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-    window = glfwCreateWindow(1440, 900, "BusPlot", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(1440, 900, "BusPlot", NULL, NULL);
     if (!window) {
         glfwTerminate();
         exit(EXIT_FAILURE);
@@ -332,7 +331,6 @@ int main() {
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-    shouldClose = true;
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImPlot::DestroyContext();
