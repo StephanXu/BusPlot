@@ -9,7 +9,7 @@
 #include "gl.hpp"
 #include "series.hpp"
 #include "chart.hpp"
-#include "serial.hpp"
+#include "serial_rpc.hpp"
 
 #ifdef _WIN32
 #define NOMINMAX
@@ -19,10 +19,10 @@
 
 CMRC_DECLARE(resources);
 
-Serial serial;
-std::string deviceName;
-int baudRate = 0;
-int characterSize = 0;
+SerialRPC serialRPC;
+std::string deviceName = "COM1";
+int baudRate = 115200;
+int characterSize = 8;
 const char *stopBitItems[] = {u8"1", u8"1.5", u8"2"};
 int curtStopBit = 0;
 const char *parityItems[] = {u8"无校验", u8"奇校验", u8"偶校验"};
@@ -38,15 +38,6 @@ float controlMatrix[3][3] = {};
 
 float chartTimeLimit = 5000.f;
 std::string connectErrorTips;
-
-static void error_callback(int error, const char *description) {
-    fprintf(stderr, "Error: %s\n", description);
-}
-
-static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
-}
 
 static void HelpMarker(const char *desc) {
     ImGui::TextDisabled("(?)");
@@ -138,21 +129,21 @@ static void StyleColorsVisualStudio(ImGuiStyle *dst = nullptr) {
 
 static void HandleSerialConnect() {
     spdlog::info("Pressed");
-    serial.Connect(deviceName,
+    serialRPC.Connect(deviceName,
                    baudRate,
                    boost::asio::serial_port::stop_bits::type(curtStopBit),
                    characterSize,
                    boost::asio::serial_port::parity::type(curtParity),
                    boost::asio::serial_port::flow_control::type(curtFlowControl));
-    if (!serial.IsValid()) {
+    if (!serialRPC.IsValid()) {
         connectErrorTips = u8"连接失败";
         return;
     }
-    serial.StartGrabbing();
+    serialRPC.StartGrabbing();
 }
 
-double GetScale() {
-    double dDpi = 1;
+float GetScale() {
+    float dDpi = 1;
 #if (defined(_WIN32))
     HDC desktopDc = GetDC(nullptr);
     float horizontalDPI = GetDeviceCaps(desktopDc, LOGPIXELSX);
@@ -172,8 +163,6 @@ double GetScale() {
 }
 
 int main() {
-    glfwSetErrorCallback(error_callback);
-
     if (!glfwInit())
         exit(EXIT_FAILURE);
 
@@ -188,14 +177,9 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    glfwSetKeyCallback(window, key_callback);
     glfwMakeContextCurrent(window);
     gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
     glfwSwapInterval(1);
-
-    glEnable(GL_CULL_FACE);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -260,9 +244,8 @@ int main() {
             ImGui::End();
         }
 
-        ImGui::ShowDemoWindow(nullptr);
-//        ImGui::ShowStyleEditor(nullptr);
-        ImPlot::ShowDemoWindow(nullptr);
+//        ImGui::ShowDemoWindow(nullptr);
+//        ImPlot::ShowDemoWindow(nullptr);
 
         if (ImGui::Begin(u8"连接设置", nullptr)) {
             ImGui::InputText(u8"设备名", &deviceName);
@@ -271,9 +254,13 @@ int main() {
             ImGui::InputInt(u8"数据位", &characterSize, 0);
             ImGui::Combo(u8"奇偶校验", &curtParity, parityItems, sizeof(parityItems) / sizeof(const char *));
             ImGui::Combo(u8"流控制", &curtFlowControl, flowControlItems, sizeof(flowControlItems) / sizeof(const char *));
+
+            ImGui::PushDisabled(serialRPC.IsValid());
             if (ImGui::Button(u8"连接", ImVec2(-1, 0))) {
                 HandleSerialConnect();
             }
+            ImGui::PopDisabled();
+
             if (connectErrorTips.length() > 0) {
                 ImGui::Text("%s", connectErrorTips.c_str());
             }
