@@ -69,12 +69,12 @@ auto Chart::Sparkline(const char *id, const std::vector<Dot> &dots, const ImVec4
     ImPlot::PopStyleVar();
 }
 
-auto Chart::RenderTable() -> void {
+auto Chart::RenderTable(double scale) -> void {
     const auto timeNow = std::chrono::time_point_cast<Duration>(Clock::now());
     const ImGuiTableFlags tableFlags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_RowBg;
     if (ImGui::BeginTable("##ReadtimeTable", 3, tableFlags, ImVec2(-1, 0))) {
-        ImGui::TableSetupColumn("Variable", ImGuiTableColumnFlags_WidthFixed, 75.0f);
-        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 75.0f);
+        ImGui::TableSetupColumn("Variable", ImGuiTableColumnFlags_WidthFixed, 75.0f * scale);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 75.0f * scale);
         ImGui::TableSetupColumn("Plot");
         ImGui::TableHeadersRow();
         ImPlot::PushColormap(ImPlotColormap_Cool);
@@ -92,7 +92,7 @@ auto Chart::RenderTable() -> void {
             ImGui::Text("%.3f", buffer.back().m_Value);
             ImGui::TableSetColumnIndex(2);
             ImGui::PushID(row);
-            Sparkline("##spark", buffer, ImPlot::GetColormapColor(row), ImVec2(-1, 35));
+            Sparkline("##spark", buffer, ImPlot::GetColormapColor(row), ImVec2(-1, 35.f * scale));
             ImGui::PopID();
         }
         ImPlot::PopColormap();

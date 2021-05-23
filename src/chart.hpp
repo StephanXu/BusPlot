@@ -32,7 +32,7 @@ public:
 
     auto RenderPlot() -> void;
 
-    auto RenderTable() -> void;
+    auto RenderTable(double scale) -> void;
 
 private:
 

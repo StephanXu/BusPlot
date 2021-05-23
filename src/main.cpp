@@ -289,7 +289,7 @@ int main() {
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         if (ImGui::Begin(u8"所有信号", nullptr)) {
-            chart->RenderTable();
+            chart->RenderTable(scaleFactor);
             ImGui::End();
         }
         ImGui::PopStyleVar();
