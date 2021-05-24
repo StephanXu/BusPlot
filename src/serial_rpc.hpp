@@ -94,7 +94,7 @@ private:
         std::copy(m_BodyBuffer.begin(),
                   m_BodyBuffer.begin() + sizeof(RPCRequest<ReqType>) - sizeof(FrameHeader) - sizeof(uint8_t),
                   reinterpret_cast<uint8_t *>(&buf.m_Request));
-        if (!CRC::VerifyCRC16Checksum(&buf, sizeof(buf))) {
+        if (!CRC::VerifyCRC16Checksum(reinterpret_cast<uint8_t*>(&buf), sizeof(buf))) {
             spdlog::warn("SerialPort CRC16 verify failed");
             ReadAsync(m_SOFBuffer, &SerialRPC::ReadSOFHandler);
             return;
