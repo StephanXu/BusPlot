@@ -11,6 +11,7 @@
 #include <unordered_map>
 
 #include "rpc_protocol.hpp"
+#include "crc.hpp"
 
 class SerialRPC {
     template<class ReqType>
@@ -65,13 +66,15 @@ public:
 
     template<class ReqType>
     static auto MakeRequest(const ReqType &requestBody) -> RPCRequest<ReqType> {
-        return RPCRequest<ReqType>
+        auto req = RPCRequest<ReqType>
                 {
                         SOF,
                         FrameHeader{sizeof(ReqType), ReqType::COMMAND},
                         requestBody,
                         {0}
                 };
+        CRC::AppendCRC16Checksum(reinterpret_cast<uint8_t *>(&req), sizeof(req));
+        return req;
     }
 
 private:
@@ -83,12 +86,19 @@ private:
     template<class ReqType>
     auto ReadBodyHandler(const boost::system::error_code &err, size_t len, MessageCallBack<ReqType> process) -> void {
         if (err) {
-            spdlog::critical("SerialPort read body failed: {}", err.message());
+            spdlog::warn("SerialPort read body failed: {}", err.message());
             ReadAsync(m_SOFBuffer, &SerialRPC::ReadSOFHandler);
             return;
         }
-        BodyWithTail<ReqType> buf{};
-        std::copy(m_BodyBuffer.begin(), m_BodyBuffer.begin() + sizeof(buf), reinterpret_cast<uint8_t *>(&buf));
+        RPCRequest<ReqType> buf{SOF, m_HeaderBuffer[0], {}, {}};
+        std::copy(m_BodyBuffer.begin(),
+                  m_BodyBuffer.begin() + sizeof(RPCRequest<ReqType>) - sizeof(FrameHeader) - sizeof(uint8_t),
+                  reinterpret_cast<uint8_t *>(&buf.m_Request));
+        if (!CRC::VerifyCRC16Checksum(&buf, sizeof(buf))) {
+            spdlog::warn("SerialPort CRC16 verify failed");
+            ReadAsync(m_SOFBuffer, &SerialRPC::ReadSOFHandler);
+            return;
+        };
         process(buf.m_Request);
         ReadAsync(m_SOFBuffer, &SerialRPC::ReadSOFHandler);
     }

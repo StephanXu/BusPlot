@@ -29,7 +29,9 @@ target_sources(BusPlot
                src/chart.cpp
                src/serial_rpc.hpp
                src/serial_rpc.cpp
-               src/rpc_protocol.hpp)
+               src/rpc_protocol.hpp
+               src/crc.hpp
+               src/crc.cpp)
 target_sources(BusPlot PRIVATE
                imgui/core/imgui_tables.cpp
                imgui/core/imconfig.h
@@ -88,7 +90,9 @@ target_sources(RPCTest
                test/rpc_test.cpp
                src/serial_rpc.hpp
                src/serial_rpc.cpp
-               src/rpc_protocol.hpp)
+               src/rpc_protocol.hpp
+               src/crc.hpp
+               src/crc.cpp)
 set_property(TARGET RPCTest PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 add_executable(Simulator)
@@ -102,5 +106,7 @@ target_sources(Simulator
                test/simulator.cpp
                src/serial_rpc.hpp
                src/serial_rpc.cpp
-               src/rpc_protocol.hpp)
+               src/rpc_protocol.hpp
+               src/crc.hpp
+               src/crc.cpp)
 set_property(TARGET Simulator PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

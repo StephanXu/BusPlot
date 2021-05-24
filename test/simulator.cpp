@@ -20,7 +20,7 @@ static constexpr int CHARACTER_SIZE = 8;
 static const auto PARITY = asio::serial_port::parity::type::none;
 static const auto FLOW_CONTROL = asio::serial_port::flow_control::none;
 
-[[noreturn]] auto Client() -> void {
+auto Client() -> void {
     asio::io_service ios;
     asio::serial_port serialPort(ios, PORT);
     serialPort.set_option(asio::serial_port::baud_rate(BAUD_RATE));
@@ -30,7 +30,6 @@ static const auto FLOW_CONTROL = asio::serial_port::flow_control::none;
     serialPort.set_option(asio::serial_port::flow_control(FLOW_CONTROL));
     if (!serialPort.is_open()) {
         spdlog::critical("Client: Initialize serial port failed.");
-        return;
     }
     spdlog::trace("Client: Serial port connect success.");
     {
