@@ -53,7 +53,7 @@ public:
             }
             boost::asio::async_read(
                     m_SerialPort, boost::asio::buffer(m_BodyBuffer),
-                    boost::asio::transfer_exactly(sizeof(BodyWithTail<ReqType>)),
+                    boost::asio::transfer_exactly(sizeof(RPCRequest<ReqType>) - sizeof(FrameHeader) - sizeof(uint8_t)),
                     boost::bind(&SerialRPC::ReadBodyHandler<ReqType>,
                                 this,
                                 boost::asio::placeholders::error,

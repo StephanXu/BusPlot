@@ -39,12 +39,6 @@ struct RPCRequest{
     FrameTail m_Tail;
 };
 
-template<class ReqType>
-struct BodyWithTail{
-    ReqType m_Request;
-    FrameTail m_Tail;
-};
-
 #pragma pack(pop)
 
 #endif // BUSPLOT_RPC_PROTOCOL_HPP
