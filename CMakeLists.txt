@@ -15,7 +15,8 @@ cmrc_add_resource_library(BusPlotResources
                           BusPlot::Resources
                           NAMESPACE
                           resources
-                          asset/default_layout.ini)
+                          asset/default_layout.ini
+                          asset/PingFang.ttf)
 set_property(TARGET BusPlotResources PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 add_executable(BusPlot)

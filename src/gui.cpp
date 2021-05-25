@@ -57,10 +57,16 @@ auto Gui::Initialize() -> void {
     auto defaultLayoutContent = fs.open("asset/default_layout.ini");
     std::vector<char> defaultLayoutBuffer(defaultLayoutContent.begin(), defaultLayoutContent.end());
     ImGui::LoadIniSettingsFromMemory(defaultLayoutBuffer.data(), defaultLayoutBuffer.size());
-    io.Fonts->AddFontFromFileTTF("asset/PingFang.ttc",
-                                 18.f * m_ScaleFactor,
-                                 nullptr,
-                                 io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
+    {
+        auto fontContent = fs.open("asset/PingFang.ttf");
+        auto *fontBuffer = new uint8_t[fontContent.size()]; // Ownership will be transferred to ImGui's ImFontAtlas
+        std::copy(fontContent.begin(), fontContent.end(), fontBuffer);
+        io.Fonts->AddFontFromMemoryTTF(fontBuffer,
+                                       fontContent.size(),
+                                       18.f * m_ScaleFactor,
+                                       nullptr,
+                                       io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
+    }
     ImGui_ImplGlfw_InitForOpenGL(m_Window, true);
     ImGui_ImplOpenGL3_Init("#version 410");
     m_Valid = true;
