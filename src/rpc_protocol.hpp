@@ -31,6 +31,16 @@ struct RemoveVariableReq {
     uint16_t m_VariableId{};
 };
 
+struct ApplyArgumentReq {
+private:
+    struct Argument {
+        float m_Scale, m_OutMax, m_Value;
+    };
+public:
+    static constexpr uint16_t COMMAND = 0x0040;
+    Argument m_P, m_I, m_D;
+};
+
 template<class ReqType>
 struct RPCRequest {
     uint8_t m_SOF{};

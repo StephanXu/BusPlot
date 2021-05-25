@@ -3,6 +3,7 @@
 
 #include "gl.hpp"
 #include "chart.hpp"
+#include "rpc_protocol.hpp"
 #include "serial_rpc.hpp"
 #include "gui.hpp"
 
@@ -119,7 +120,8 @@ auto Gui::Render() -> void {
         ImGui::Combo(u8"停止位", &m_CurtStopBit, STOP_BIT_ITEMS, sizeof(STOP_BIT_ITEMS) / sizeof(const char *));
         ImGui::InputInt(u8"数据位", &m_CharacterSize, 0);
         ImGui::Combo(u8"奇偶校验", &m_CurtParity, PARITY_ITEMS, sizeof(PARITY_ITEMS) / sizeof(const char *));
-        ImGui::Combo(u8"流控制", &m_CurtFlowControl, FLOW_CONTROL_ITEMS, sizeof(FLOW_CONTROL_ITEMS) / sizeof(const char *));
+        ImGui::Combo(u8"流控制", &m_CurtFlowControl, FLOW_CONTROL_ITEMS,
+                     sizeof(FLOW_CONTROL_ITEMS) / sizeof(const char *));
 
         ImGui::PushDisabled(m_SerialRPC.IsValid());
         if (ImGui::Button(u8"连接", ImVec2(-1, 0))) {
@@ -165,7 +167,9 @@ auto Gui::Render() -> void {
         HelpMarker(u8"设置D参数\n"
                    u8"拖动或双击修改参数值\n"
                    u8"值顺序为: (Scale, OutMax, Value)\n");
-        ImGui::Button(u8"应用参数", ImVec2(-1, 0));
+        if (ImGui::Button(u8"应用参数", ImVec2(-1, 0))) {
+
+        }
         if (ImGui::DragFloat(u8"图表时长", &m_ChartTimeLimit, 10.f, 1000.f, 0.f, "%.3f ms")) {
             m_Chart.SetTimeLimit(std::chrono::microseconds(static_cast<long long>(m_ChartTimeLimit * 1000.f)));
         }
@@ -305,4 +309,13 @@ void Gui::HandleSerialConnect() {
         return;
     }
     m_SerialRPC.StartGrabbing();
+}
+
+void Gui::HandleArgumentApplying() {
+    ApplyArgumentReq req = {
+            {m_ControlMatrix[0][0], m_ControlMatrix[0][1], m_ControlMatrix[0][2]},
+            {m_ControlMatrix[1][0], m_ControlMatrix[1][1], m_ControlMatrix[1][2]},
+            {m_ControlMatrix[2][0], m_ControlMatrix[2][1], m_ControlMatrix[2][2]},
+    };
+    m_SerialRPC.Request(req);
 }

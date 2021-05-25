@@ -37,6 +37,8 @@ private:
 
     void HandleSerialConnect();
 
+    void HandleArgumentApplying();
+
     static const char *STOP_BIT_ITEMS[3];
     static const char *PARITY_ITEMS[3];
     static const char *FLOW_CONTROL_ITEMS[3];
