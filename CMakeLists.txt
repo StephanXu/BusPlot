@@ -23,6 +23,8 @@ target_compile_features(BusPlot PRIVATE cxx_std_17)
 target_sources(BusPlot
                PRIVATE
                src/main.cpp
+               src/gui.hpp
+               src/gui.cpp
                src/series.hpp
                src/series.cpp
                src/chart.hpp

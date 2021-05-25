@@ -17,6 +17,7 @@ class SerialRPC {
     template<class ReqType>
     using MessageCallBack = std::function<void(const ReqType &)>;
     using CloseCondition = std::function<bool()>;
+    static constexpr size_t MAX_BODY_SIZE = 512;
 public:
 
     SerialRPC();
@@ -94,7 +95,7 @@ private:
         std::copy(m_BodyBuffer.begin(),
                   m_BodyBuffer.begin() + sizeof(RPCRequest<ReqType>) - sizeof(FrameHeader) - sizeof(uint8_t),
                   reinterpret_cast<uint8_t *>(&buf.m_Request));
-        if (!CRC::VerifyCRC16Checksum(reinterpret_cast<uint8_t*>(&buf), sizeof(buf))) {
+        if (!CRC::VerifyCRC16Checksum(reinterpret_cast<uint8_t *>(&buf), sizeof(buf))) {
             spdlog::warn("SerialPort CRC16 verify failed");
             ReadAsync(m_SOFBuffer, &SerialRPC::ReadSOFHandler);
             return;
@@ -139,7 +140,7 @@ private:
 
     std::array<uint8_t, 1> m_SOFBuffer{};
     std::array<FrameHeader, 1> m_HeaderBuffer{};
-    std::array<uint8_t, 512> m_BodyBuffer{};
+    std::array<uint8_t, MAX_BODY_SIZE> m_BodyBuffer{};
 };
 
 #endif // BUSPLOT_SERIAL_RPC_HPP
