@@ -80,7 +80,7 @@ public:
 
     template<class ReqType>
     auto Request(const ReqType requestBody) -> void {
-        std::array<RPCRequest<ReqType>, 2> buffer = {SerialRPC::MakeRequest(requestBody)};
+        std::array<RPCRequest<ReqType>, 1> buffer = {SerialRPC::MakeRequest(requestBody)};
         boost::asio::write(m_SerialPort, boost::asio::buffer(buffer));
     }
 

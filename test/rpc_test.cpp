@@ -18,13 +18,17 @@ static constexpr int CHARACTER_SIZE = 8;
 static const auto PARITY = asio::serial_port::parity::type::none;
 static const auto FLOW_CONTROL = asio::serial_port::flow_control::none;
 
+#pragma pack(push, 1)
+
 struct FooReq {
     static constexpr uint16_t COMMAND = 0x0021;
     uint16_t bar{};
 };
 
+#pragma pack(pop)
+
 auto HandleFooRequest(const FooReq &req) -> void {
-    std::cout << "Value: " << req.bar << std::endl;
+    spdlog::info("Value: {}", req.bar);
 }
 
 auto Server() -> void {
@@ -36,11 +40,12 @@ auto Server() -> void {
     spdlog::trace("Server: Serial port connect success.");
     serial.RegisterMessage<FooReq>(HandleFooRequest);
     serial.StartGrabbing();
+    serial.Join();
 }
 
 auto Client() -> void {
     SerialRPC serial;
-    serial.Connect(SERVER_PORT, BAUD_RATE, STOP_BITS, CHARACTER_SIZE, PARITY, FLOW_CONTROL);
+    serial.Connect(CLIENT_PORT, BAUD_RATE, STOP_BITS, CHARACTER_SIZE, PARITY, FLOW_CONTROL);
     if (!serial.IsValid()) {
         return;
     }
