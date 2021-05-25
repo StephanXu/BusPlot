@@ -2,6 +2,7 @@
 #include <spdlog/spdlog.h>
 
 #include <thread>
+#include <iostream>
 
 #include "../src/rpc_protocol.hpp"
 #include "../src/serial_rpc.hpp"
@@ -17,8 +18,13 @@ static constexpr int CHARACTER_SIZE = 8;
 static const auto PARITY = asio::serial_port::parity::type::none;
 static const auto FLOW_CONTROL = asio::serial_port::flow_control::none;
 
-auto HandleVariableAlias(const VariableAliasReq &req) -> void {
-    spdlog::info("Set variable {} as alias {}.", req.m_VariableId, req.m_Alias);
+struct FooReq {
+    static constexpr uint16_t COMMAND = 0x0021;
+    uint16_t bar{};
+};
+
+auto HandleFooRequest(const FooReq &req) -> void {
+    std::cout << "Value: " << req.bar << std::endl;
 }
 
 auto Server() -> void {
@@ -28,30 +34,20 @@ auto Server() -> void {
         return;
     }
     spdlog::trace("Server: Serial port connect success.");
-    serial.RegisterMessage<VariableAliasReq>(HandleVariableAlias);
+    serial.RegisterMessage<FooReq>(HandleFooRequest);
     serial.StartGrabbing();
-    serial.Join();
 }
 
-[[noreturn]] auto Client() -> void {
-    asio::io_service ios;
-    asio::serial_port serialPort(ios, CLIENT_PORT);
-    serialPort.set_option(asio::serial_port::baud_rate(BAUD_RATE));
-    serialPort.set_option(asio::serial_port::stop_bits(STOP_BITS));
-    serialPort.set_option(asio::serial_port::character_size(CHARACTER_SIZE));
-    serialPort.set_option(asio::serial_port::parity(PARITY));
-    serialPort.set_option(asio::serial_port::flow_control(FLOW_CONTROL));
-    if (!serialPort.is_open()) {
-        spdlog::critical("Client: Initialize serial port failed.");
+auto Client() -> void {
+    SerialRPC serial;
+    serial.Connect(SERVER_PORT, BAUD_RATE, STOP_BITS, CHARACTER_SIZE, PARITY, FLOW_CONTROL);
+    if (!serial.IsValid()) {
         return;
     }
     spdlog::trace("Client: Serial port connect success.");
-    std::array<RPCRequest<VariableAliasReq>, 1> frameBuffer = {
-            SerialRPC::MakeRequest(VariableAliasReq{10, "Var1"})
-    };
+    uint16_t count = 0;
     while (true) {
-        auto wroteLength = asio::write(serialPort, asio::buffer(frameBuffer));
-        spdlog::trace("Client: Write {} bytes.", wroteLength);
+        serial.Request(FooReq{++count});
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }

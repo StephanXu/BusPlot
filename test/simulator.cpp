@@ -1,4 +1,3 @@
-#include <boost/asio.hpp>
 #include <spdlog/spdlog.h>
 
 #include <thread>
@@ -21,32 +20,19 @@ static const auto PARITY = asio::serial_port::parity::type::none;
 static const auto FLOW_CONTROL = asio::serial_port::flow_control::none;
 
 auto Client() -> void {
-    asio::io_service ios;
-    asio::serial_port serialPort(ios, PORT);
-    serialPort.set_option(asio::serial_port::baud_rate(BAUD_RATE));
-    serialPort.set_option(asio::serial_port::stop_bits(STOP_BITS));
-    serialPort.set_option(asio::serial_port::character_size(CHARACTER_SIZE));
-    serialPort.set_option(asio::serial_port::parity(PARITY));
-    serialPort.set_option(asio::serial_port::flow_control(FLOW_CONTROL));
-    if (!serialPort.is_open()) {
-        spdlog::critical("Client: Initialize serial port failed.");
+    SerialRPC rpc;
+    rpc.Connect(PORT, BAUD_RATE, STOP_BITS, CHARACTER_SIZE, PARITY, FLOW_CONTROL);
+    if (!rpc.IsValid()) {
+        return;
     }
     spdlog::trace("Client: Serial port connect success.");
-    {
-        std::array<RPCRequest<VariableAliasReq>, 2> setAliasBuffer = {
-                SerialRPC::MakeRequest(VariableAliasReq{1, "Foo"}),
-                SerialRPC::MakeRequest(VariableAliasReq{2, "Bar"}),
-        };
-        asio::write(serialPort, asio::buffer(setAliasBuffer));
-    }
+    rpc.Request(VariableAliasReq{1, "Foo"});
+    rpc.Request(VariableAliasReq{2, "Bar"});
     while (true) {
         auto t = std::chrono::time_point_cast<Duration>(Clock::now());
         auto s = static_cast<double>(t.time_since_epoch().count()) / 1000000.f;
-        std::array<RPCRequest<UpdateVariableReq>, 2> updateBuffer = {
-                SerialRPC::MakeRequest(UpdateVariableReq{1, static_cast<float>(50.f * std::sin(s * 40.f) + 10.f)}),
-                SerialRPC::MakeRequest(UpdateVariableReq{2, static_cast<float>(10.f * std::cos(s * 20.f) + 10.f)})
-        };
-        auto wroteLength = asio::write(serialPort, asio::buffer(updateBuffer));
+        rpc.Request(UpdateVariableReq{1, static_cast<float>(50.f * std::sin(s * 40.f) + 10.f)});
+        rpc.Request(UpdateVariableReq{2, static_cast<float>(10.f * std::cos(s * 20.f) + 10.f)});
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }

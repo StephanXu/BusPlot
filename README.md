@@ -49,10 +49,9 @@ cd ../..
 
 Bus Plot implemented a Remote Procedure Call (RPC) protocol for communication between host device and slave device. You can extend it to implement your own functions.
 
-
 ### Basic Usage
 
-#### Server side
+#### Define protocol
 
 First you need to declare your own request structure like:
 
@@ -63,7 +62,11 @@ struct FooReq {
 };
 ```
 
-Then implement a handle function to response:
+It simply contains a member `bar`.
+
+#### Server side
+
+On the server side, you need to implement a handle function to response request:
 
 ```c++
 auto HandleFooRequest(const FooReq &req) -> void {
@@ -77,12 +80,21 @@ Finnally just register the request structure and handle function before start gr
 serialRPC.RegisterMessage<FooReq>(HandleFooRequest);
 ```
 
+#### Client side
+
+You can simply construct request body and call `Request` to make a call.
+
+```c++
+FooReq req = {16};
+m_SerialRPC.Request(req);
+```
+
 #### Establish Connect
 
 Both of server and client are required to establish a connection before start grabbing:
 
 ```c++
-serialRPC.Connect(m_DeviceName,
+serialRPC.Connect("COM3",
                   115200,
                   boost::asio::serial_port::stop_bits::type::one,
                   8,
@@ -140,7 +152,7 @@ struct VariableAliasReq {
 
 #### Tail
 
-Frame tail contains a CRC16 result which calculating the entire request except itself.
+Frame tail contains a CRC16 result which calculating the entire request except itself. The implementation of the CRC16 algorithm is contained in [crc.hpp](https://github.com/StephanXu/BusPlot/blob/main/src/crc.hpp) and [crc.cpp](https://github.com/StephanXu/BusPlot/blob/main/src/crc.cpp).
 
 **The declaration of `FrameTail`**
 
